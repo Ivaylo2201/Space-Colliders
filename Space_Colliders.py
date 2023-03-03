@@ -2,6 +2,7 @@
 # TOP WHITE NUMBER - TOTAL DODGED ASTEROIDS
 # TOP PURPLE NUMBER - TOTAL DESTROYED ASTEROIDS
 # TOP RED NUMBER - CURRENT AMOUNT OF REMAINING ENERGY
+# TOP ORANGE TEXT - CURRENT HIGHSCORE
 # BOTTOM LEFT TEXT - CURRENT VERSION OF THE GAME
 # BOTTOM MIDDLE TEXT - CREATOR & COPYRIGHT
 
@@ -11,7 +12,8 @@
 # SHOOT LASER -> SPACE
 
 # DODGING 10 ASTEROIDS REFUNDS 250 ENERGY IF THE ENERGY
-# WON'T SURPASS THE MAX ENERGY POSSIBLE
+# WON'T SURPASS THE MAX ENERGY POSSIBLE, IN THE OTHER CASE
+# SET THE ENERGY TO THE MAX ENERGY POSSIBLE
 
 # Modules
 import random
@@ -34,17 +36,21 @@ SPACE_JET = pygame.image.load('space_jet.png')
 ASTEROID = pygame.image.load('asteroid.png')
 LASER = pygame.image.load('laser.png')
 
-# Loading sounds & setting their volume
+# Loading sounds & setting their volumes
 crash_sound = pygame.mixer.Sound('crash_sound.mp3')
 dodge_sound = pygame.mixer.Sound('dodge_sound.mp3')
 laser_sound = pygame.mixer.Sound('laser_sound.mp3')
 bg_sound = pygame.mixer.Sound('bgMusic.mp3')
-
-# TO DO: ENERGY REFUND SOUND
+new_highscore_sound = pygame.mixer.Sound('new_highscore_sound.mp3')
+new_highscore_voiceover = pygame.mixer.Sound('new_highscore_voiceover.mp3')
+energy_refund_sound = pygame.mixer.Sound('energy_refund_sound.mp3')
 
 crash_sound.set_volume(2.5)
 dodge_sound.set_volume(1)
 bg_sound.set_volume(0.5)
+new_highscore_sound.set_volume(1.3)
+new_highscore_voiceover.set_volume(0.7)
+energy_refund_sound.set_volume(2)
 
 # Defining colors & key attributes
 WHITE = (255, 255, 255)
@@ -73,16 +79,29 @@ def main(x, y, vel):
     asteroid_y = ASTEROID_START_Y
     asteroids_dodged = 0
     asteroids_destroyed = 0
+    new_highscore = True
     # Game speed
     clock = pygame.time.Clock()
     energy_available = MAX_ENERGY
+    # Creating the file if it does not exist.
+    open("highscores.txt", "a")
 
     running = True
     while running:
+        # Reading the highscore & converting it to an integer
+        highscores = open("highscores.txt", "r")
+        highscoreINT = [int(x) for x in highscores.read().split()]
+        if len(highscoreINT) > 0:
+            highscore = max(highscoreINT)
+        else:
+            highscore = 0
+
         clock.tick(TICK_RATE)
         SCREEN.blit(SPACE_BACKGROUND, (0, 0))
         SCREEN.blit(SPACE_JET, (x, y))
         SCREEN.blit(ASTEROID, (asteroid_x, asteroid_y))
+        HIGHSCORE = FONT_LARGE.render(f"{highscore}", True, ORANGE)
+        SCREEN.blit(HIGHSCORE, (10, 100))
 
         # User quit
         for event in pygame.event.get():
@@ -112,7 +131,7 @@ def main(x, y, vel):
                 SCREEN.blit(LASER, (x + 44.5, y - 90))
                 pygame.mixer.Sound.play(laser_sound)
                 rectLaser = pygame.Rect(x + 35, y - 90, 30, 15)
-                energy_available -= 0.5
+                energy_available -= 1
 
                 # If the laser collides with an asteroid - destroy the asteroid
                 if rectLaser.colliderect(rectAst):
@@ -120,6 +139,17 @@ def main(x, y, vel):
                     # Spawning the asteroid at a random X location
                     asteroid_x = random.randint(0, 406)
                     asteroids_destroyed += 1
+
+                    if asteroids_destroyed > highscore:
+                        if new_highscore:
+                            laser_sound.stop()
+                            pygame.mixer.Sound.play(new_highscore_sound)
+                            pygame.mixer.Sound.play(new_highscore_voiceover)
+
+                        add_highscore = open('highscores.txt', 'w')
+                        add_highscore.write(str(asteroids_destroyed))
+                        add_highscore.close()
+                        new_highscore = False
 
         asteroid_y += vel
 
@@ -141,6 +171,7 @@ def main(x, y, vel):
             asteroids_dodged += 1
 
             if asteroids_dodged % 10 == 0:
+                pygame.mixer.Sound.play(energy_refund_sound)
                 if energy_available + ENERGY_REFUND <= MAX_ENERGY:
                     energy_available += ENERGY_REFUND
                 else:
@@ -154,7 +185,7 @@ def main(x, y, vel):
         # Additional info
         credit_creator = FONT_SMALL.render(f"Created by Ivaylo Georgiev", True, WHITE)
         credit_copyright = FONT_SMALL.render(f"© TU-VARNA 2023", True, WHITE)
-        current_version = FONT_SMALL.render("v1.2", True, WHITE)
+        current_version = FONT_SMALL.render("v1.3", True, WHITE)
 
         # / Different colors depending on the amount of dodged asteroids /
         if 20 <= asteroids_dodged < 35:
